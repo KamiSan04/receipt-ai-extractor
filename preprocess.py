@@ -6,11 +6,6 @@ processor = LayoutLMv3Processor.from_pretrained("microsoft/layoutlmv3-base", app
 ds = load_dataset("mp-02/sroie")
 
 label_list = ds["train"].features["ner_tags"].feature.names
-print("Labels:", label_list)
-
-example = ds["train"][0]
-image = example["image"].convert("RGB")
-width, height = image.size
 
 def normalize_box(box, width, height):
     return [
@@ -20,20 +15,23 @@ def normalize_box(box, width, height):
         int(1000 * box[3] / height),
     ]
 
-boxes = [normalize_box(box, width, height) for box in example["bboxes"]]
+def process_example(example):
+    image = example["image"].convert("RGB")
+    width, height = image.size
+    boxes = [normalize_box(box, width, height) for box in example["bboxes"]]
 
-encoding = processor(
-    image,
-    example["words"],
-    boxes=boxes,
-    word_labels=example["ner_tags"],
-    truncation=True,
-    padding="max_length",
-    return_tensors="pt",
-)
+    encoding = processor(
+        image,
+        example["words"],
+        boxes=boxes,
+        word_labels=example["ner_tags"],
+        truncation=True,
+        padding="max_length",
+    )
+    return encoding
 
-print(encoding.keys())
-print(encoding["input_ids"].shape)
-print(encoding["bbox"].shape)
-print(encoding["labels"].shape)
-print(encoding["labels"][0][:20])
+processed_train = ds["train"].map(process_example, remove_columns=ds["train"].column_names)
+processed_test = ds["test"].map(process_example, remove_columns=ds["test"].column_names)
+
+print(processed_train)
+print(processed_train[0].keys())
