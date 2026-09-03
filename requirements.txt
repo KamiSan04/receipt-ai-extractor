@@ -1,0 +1,13 @@
+# Install PyTorch separately first, matched to your GPU/CUDA version:
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu132
+# (see https://pytorch.org/get-started/locally/ to find the right index URL for your machine)
+
+transformers
+datasets
+seqeval
+pytesseract
+pillow
+accelerate
+fastapi
+uvicorn
+python-multipart
