@@ -1,4 +1,5 @@
 import pytesseract
+import re
 from PIL import Image
 from transformers import LayoutLMv3Processor, LayoutLMv3ForTokenClassification
 import torch
@@ -33,9 +34,21 @@ def run_ocr(image):
 
     return words, boxes
 
+def find_total_fallback(words):
+    for i, word in enumerate(words):
+        if word.lower() == "total":
+            if i > 0 and words[i-1].lower() == "sub":
+                continue
+            for j in range(i+1, min(i+4, len(words))):
+                match = re.match(r'\$?(\d+\.\d{2})', words[j])
+                if match:
+                    return match.group(1)
+    return None
+
 def extract_fields(image_path):
     image = Image.open(image_path).convert("RGB")
     words, boxes = run_ocr(image)
+    print(words)
 
     encoding = processor(
         image,
@@ -45,7 +58,6 @@ def extract_fields(image_path):
         padding="max_length",
         return_tensors="pt",
     )
-    encoding["pixel_values"] = encoding["pixel_values"]
 
     with torch.no_grad():
         outputs = model(**encoding)
@@ -66,8 +78,15 @@ def extract_fields(image_path):
         results.setdefault(field, []).append(words[word_id])
 
     final = {field: " ".join(vals) for field, vals in results.items()}
+
+    if "total" not in final:
+        fallback = find_total_fallback(words)
+        if fallback:
+            final["total"] = fallback
+
     return final
 
 if __name__ == "__main__":
     result = extract_fields("test_receipt.jpg")
     print(result)
+
